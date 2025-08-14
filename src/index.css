@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* index.css'e eklenebilir */
+.react-select__control {
+    padding: 0.4rem;
+    border-radius: 0.5rem;
+    border: 1px solid #d1d5db;
+    min-height: 2.75rem;
+  }
+  .react-select__control--is-focused {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 1px #6366f1;
+  }
+  .react-select__menu {
+    z-index: 10;
+  }
+  
