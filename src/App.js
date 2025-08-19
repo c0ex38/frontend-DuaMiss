@@ -7,6 +7,8 @@ import PrivateRoute from './components/PrivateRoute';
 
 function App() {
   return (
+    <>
+      <SpeedInsights />
     <Router>
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
@@ -22,6 +24,7 @@ function App() {
         />
       </Routes>
     </Router>
+    </>
   );
 }
 
