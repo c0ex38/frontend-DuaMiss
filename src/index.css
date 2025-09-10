@@ -2,18 +2,113 @@
 @tailwind components;
 @tailwind utilities;
 
-/* index.css'e eklenebilir */
+/* Custom animations and styles */
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Glassmorphism effects */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* React Select custom styles */
 .react-select__control {
-    padding: 0.4rem;
-    border-radius: 0.5rem;
-    border: 1px solid #d1d5db;
-    min-height: 2.75rem;
-  }
-  .react-select__control--is-focused {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 1px #6366f1;
-  }
-  .react-select__menu {
-    z-index: 10;
-  }
+  padding: 0.4rem;
+  border-radius: 0.5rem;
+  border: 1px solid #d1d5db;
+  min-height: 2.75rem;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.react-select__control:hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: #6366f1;
+}
+
+.react-select__control--is-focused {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.react-select__menu {
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.react-select__option {
+  padding: 12px 16px;
+  transition: all 0.2s ease;
+}
+
+.react-select__option:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.react-select__option--is-selected {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6b3fa0 100%);
+}
+
+/* Modern form focus styles */
+.modern-input {
+  @apply transition-all duration-300 border-2 border-gray-200 rounded-2xl bg-white/70 backdrop-blur-sm;
+}
+
+.modern-input:focus {
+  @apply border-indigo-500 ring-0 bg-white/90 shadow-lg;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+}
+
+.modern-input:hover {
+  @apply bg-white/90 border-gray-300;
+}
   

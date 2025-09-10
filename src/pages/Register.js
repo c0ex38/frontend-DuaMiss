@@ -2,29 +2,52 @@ import { useState } from 'react';
 import api from '../api/axios';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-
+import useToast from '../hooks/useToast';
+import Toast from '../components/Toast';
 
 function Register() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+  const { toast, showToast, hideToast, handleApiError } = useToast();
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      setError('Şifreler eşleşmiyor');
+    
+    if (!username.trim() || !password.trim() || !confirmPassword.trim()) {
+      showToast('Tüm alanları doldurun', 'warning');
       return;
     }
+    
+    if (password !== confirmPassword) {
+      showToast('Şifreler eşleşmiyor', 'warning');
+      return;
+    }
+    
+    if (password.length < 6) {
+      showToast('Şifre en az 6 karakter olmalıdır', 'warning');
+      return;
+    }
+    
     setLoading(true);
     try {
-      await api.post('register/', { username, password });
-      navigate('/login');
+      await api.post('register/', { 
+        username: username.trim(), 
+        password 
+      });
+      showToast('Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...');
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500);
     } catch (err) {
-      setError(err.response?.data?.username || 'Kayıt işlemi başarısız');
+      if (err.response?.data?.username) {
+        showToast(err.response.data.username[0] || 'Bu kullanıcı adı zaten kullanılıyor', 'error');
+      } else {
+        handleApiError(err, 'Kayıt işlemi başarısız');
+      }
     } finally {
       setLoading(false);
     }
@@ -58,16 +81,6 @@ function Register() {
         </motion.div>
 
         <form onSubmit={handleRegister} className="space-y-6">
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-red-50 text-red-500 p-3 rounded-lg text-sm text-center"
-            >
-              {error}
-            </motion.div>
-          )}
-
           <motion.div
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
@@ -79,6 +92,7 @@ function Register() {
               placeholder="Kullanıcı adınızı girin"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              disabled={loading}
               required
             />
           </motion.div>
@@ -92,9 +106,10 @@ function Register() {
             <input
               type="password"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition bg-white/50 backdrop-blur-sm"
-              placeholder="Şifrenizi girin"
+              placeholder="Şifrenizi girin (en az 6 karakter)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
               required
             />
           </motion.div>
@@ -111,20 +126,28 @@ function Register() {
               placeholder="Şifrenizi tekrar girin"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={loading}
               required
             />
           </motion.div>
 
           <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: loading ? 1 : 1.02 }}
+            whileTap={{ scale: loading ? 1 : 0.98 }}
             type="submit"
             disabled={loading}
             className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition ${
               loading ? 'opacity-75 cursor-not-allowed' : ''
             }`}
           >
-            {loading ? 'Kaydediliyor...' : 'Kayıt Ol'}
+            {loading ? (
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <span>Kaydediliyor...</span>
+              </div>
+            ) : (
+              'Kayıt Ol'
+            )}
           </motion.button>
         </form>
 
@@ -144,6 +167,8 @@ function Register() {
           </motion.a>
         </motion.div>
       </motion.div>
+
+      <Toast toast={toast} onClose={hideToast} />
     </div>
   );
 }
