@@ -116,17 +116,14 @@ function OrderPanel() {
   const handleItemChange = useCallback((index, field, value) => {
     setItems(prevItems => {
       const newItems = [...prevItems];
-      
       // Validate inputs to prevent negative values
       if ((field === 'quantity' || field === 'unit_price') && value < 0) {
         value = 0;
       }
-      
       // Limit discount to 0-100 range
       if (field === 'item_discount' && (value < 0 || value > 100)) {
         value = value < 0 ? 0 : 100;
       }
-      
       // Değeri güncelle - boş string kontrolü ekledik
       if (field === 'quantity' || field === 'item_discount') {
         newItems[index][field] = Number(value) || 0;
@@ -135,7 +132,6 @@ function OrderPanel() {
       } else {
         newItems[index][field] = value;
       }
-      
       // Auto-fill price when product is selected
       if (field === 'product' && value) {
         const selectedProduct = products.find(p => p.id === Number(value));
@@ -143,15 +139,20 @@ function OrderPanel() {
           newItems[index].unit_price = selectedProduct.price;
         }
       }
-      
-      // Son satırda ürün seçilirse yeni satır ekle
-      if (field === 'product' && value && index === prevItems.length - 1) {
-        setTimeout(() => addItemRow(), 0);
-      }
-      
       return newItems;
     });
   }, [products]);
+  // Son satırda ürün seçilirse yeni satır ekle
+  useEffect(() => {
+    if (
+      items.length > 0 &&
+      items[items.length - 1].product &&
+      items[items.length - 1].quantity &&
+      items[items.length - 1].unit_price
+    ) {
+      addItemRow();
+    }
+  }, [items]);
 
   const handleGlobalDiscountChange = (value) => {
     const numValue = Number(value) || 0;
