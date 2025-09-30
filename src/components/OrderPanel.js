@@ -61,12 +61,10 @@ function OrderPanel() {
     setItems([...items, { product: '', quantity: 1, unit_price: '', item_discount: 0 }]);
   };
 
-  // Add a new function to remove an item
   const removeItemRow = (index) => {
     const newItems = [...items];
     newItems.splice(index, 1);
     
-    // Make sure we always have at least one item row
     if (newItems.length === 0) {
       newItems.push({ product: '', quantity: 1, unit_price: '', item_discount: 0 });
     }
@@ -82,10 +80,8 @@ function OrderPanel() {
       return;
     }
 
-    // Boş ürün satırlarını filtrele
     const validItems = items.filter(item => item.product && item.quantity && item.unit_price);
     
-    // En az bir geçerli ürün olup olmadığını kontrol et
     if (validItems.length === 0) {
       showToast('Lütfen en az bir ürün ekleyin', 'warning');
       return;
@@ -102,13 +98,11 @@ function OrderPanel() {
       
       showToast('Sipariş başarıyla oluşturuldu');
       
-      // Reset form
       setSelectedCompany('');
       setGlobalDiscount(0);
       setVatRate(0);
       setItems([{ product: '', quantity: 1, unit_price: '', item_discount: 0 }]);
 
-      // Refresh orders list
       const updatedOrders = await api.get('orders/');
       setOrders(updatedOrders.data);
     } catch (err) {
@@ -118,97 +112,97 @@ function OrderPanel() {
     }
   };
 
-  // Add new state for calculations
-  const [calculations, setCalculations] = useState({
-    subtotal: 0,
-    discountAmount: 0,
-    vatAmount: 0,
-    total: 0
-  });
-
-  // Improved handleItemChange function with validation and auto-price filling
+  // ÖNEMLİ DEĞİŞİKLİK: handleItemChange'i optimize ettik
   const handleItemChange = useCallback((index, field, value) => {
-    const newItems = [...items];
-    
-    // Validate inputs to prevent negative values
-    if ((field === 'quantity' || field === 'unit_price') && value < 0) {
-      value = 0;
-    }
-    
-    // Limit discount to 0-100 range
-    if (field === 'item_discount' && (value < 0 || value > 100)) {
-      value = value < 0 ? 0 : 100;
-    }
-    
-    newItems[index][field] = field === 'quantity' || field === 'item_discount' ? Number(value) : value;
-    
-    // Auto-fill price when product is selected
-    if (field === 'product' && value) {
-      const selectedProduct = products.find(p => p.id === Number(value));
-      if (selectedProduct) {
-        newItems[index].unit_price = selectedProduct.price;
+    setItems(prevItems => {
+      const newItems = [...prevItems];
+      
+      // Validate inputs to prevent negative values
+      if ((field === 'quantity' || field === 'unit_price') && value < 0) {
+        value = 0;
       }
-    }
-    
-    setItems(newItems);
-    
-    // Eğer ürün seçildiyse ve son satırdaysa, otomatik olarak yeni satır ekle
-    if (field === 'product' && value && index === items.length - 1) {
-      addItemRow();
-    }
-  }, [items, products]);
+      
+      // Limit discount to 0-100 range
+      if (field === 'item_discount' && (value < 0 || value > 100)) {
+        value = value < 0 ? 0 : 100;
+      }
+      
+      // Değeri güncelle - boş string kontrolü ekledik
+      if (field === 'quantity' || field === 'item_discount') {
+        newItems[index][field] = Number(value) || 0;
+      } else if (field === 'unit_price') {
+        newItems[index][field] = value === '' ? '' : Number(value);
+      } else {
+        newItems[index][field] = value;
+      }
+      
+      // Auto-fill price when product is selected
+      if (field === 'product' && value) {
+        const selectedProduct = products.find(p => p.id === Number(value));
+        if (selectedProduct) {
+          newItems[index].unit_price = selectedProduct.price;
+        }
+      }
+      
+      // Son satırda ürün seçilirse yeni satır ekle
+      if (field === 'product' && value && index === prevItems.length - 1) {
+        setTimeout(() => addItemRow(), 0);
+      }
+      
+      return newItems;
+    });
+  }, [products]);
 
-  // Add validation for global discount and VAT rate
   const handleGlobalDiscountChange = (value) => {
-    // Ensure discount is between 0-100
-    const validValue = Math.min(Math.max(0, value), 100);
+    const numValue = Number(value) || 0;
+    const validValue = Math.min(Math.max(0, numValue), 100);
     setGlobalDiscount(validValue);
   };
 
   const handleVatRateChange = (value) => {
-    // Ensure VAT rate is not negative
-    const validValue = Math.max(0, value);
+    const numValue = Number(value) || 0;
+    const validValue = Math.max(0, numValue);
     setVatRate(validValue);
   };
 
-  // Improved calculation effect
-  useEffect(() => {
-    const calculateTotals = () => {
-      let subtotal = 0;
+  // ÖNEMLİ DEĞİŞİKLİK: useEffect yerine useMemo kullanarak hesaplama yaptık
+  const calculations = useMemo(() => {
+    let subtotal = 0;
+    
+    // Calculate subtotal and item discounts
+    items.forEach(item => {
+      // Skip calculation for items with missing values
+      if (!item.product || !item.quantity || !item.unit_price) {
+        return;
+      }
       
-      // Calculate subtotal and item discounts
-      items.forEach(item => {
-        // Skip calculation for items with missing values
-        if (!item.product || !item.quantity || !item.unit_price) {
-          return;
-        }
-        
-        const itemTotal = Math.max(0, item.quantity * parseFloat(item.unit_price));
-        const itemDiscountAmount = (itemTotal * Math.min(Math.max(0, item.item_discount), 100)) / 100;
-        subtotal += Math.max(0, itemTotal - itemDiscountAmount);
-      });
-  
-      // Calculate global discount (clamped between 0-100%)
-      const safeGlobalDiscount = Math.min(Math.max(0, globalDiscount), 100);
-      const globalDiscountAmount = (subtotal * safeGlobalDiscount) / 100;
-      const afterDiscount = Math.max(0, subtotal - globalDiscountAmount);
-  
-      // Calculate VAT (ensure non-negative)
-      const safeVatRate = Math.max(0, vatRate);
-      const vatAmount = (afterDiscount * safeVatRate) / 100;
-  
-      // Calculate final total
-      const total = afterDiscount + vatAmount;
-  
-      setCalculations({
-        subtotal: subtotal.toFixed(2),
-        discountAmount: globalDiscountAmount.toFixed(2),
-        vatAmount: vatAmount.toFixed(2),
-        total: total.toFixed(2)
-      });
+      const qty = Number(item.quantity) || 0;
+      const price = Number(item.unit_price) || 0;
+      const discount = Number(item.item_discount) || 0;
+      
+      const itemTotal = Math.max(0, qty * price);
+      const itemDiscountAmount = (itemTotal * Math.min(Math.max(0, discount), 100)) / 100;
+      subtotal += Math.max(0, itemTotal - itemDiscountAmount);
+    });
+
+    // Calculate global discount (clamped between 0-100%)
+    const safeGlobalDiscount = Math.min(Math.max(0, Number(globalDiscount) || 0), 100);
+    const globalDiscountAmount = (subtotal * safeGlobalDiscount) / 100;
+    const afterDiscount = Math.max(0, subtotal - globalDiscountAmount);
+
+    // Calculate VAT (ensure non-negative)
+    const safeVatRate = Math.max(0, Number(vatRate) || 0);
+    const vatAmount = (afterDiscount * safeVatRate) / 100;
+
+    // Calculate final total
+    const total = afterDiscount + vatAmount;
+
+    return {
+      subtotal: subtotal.toFixed(2),
+      discountAmount: globalDiscountAmount.toFixed(2),
+      vatAmount: vatAmount.toFixed(2),
+      total: total.toFixed(2)
     };
-  
-    calculateTotals();
   }, [items, globalDiscount, vatRate]);
   
   // React-Select özel stilleri
@@ -221,7 +215,7 @@ function OrderPanel() {
     menu: (provided) => ({
       ...provided,
       width: 'auto',
-      minWidth: '250%', // Menüyü sağa doğru genişlet
+      minWidth: '250%',
       zIndex: 9999,
     }),
     menuList: (provided) => ({
@@ -230,27 +224,27 @@ function OrderPanel() {
     }),
     option: (provided) => ({
       ...provided,
-      whiteSpace: 'nowrap', // Metni tek satırda tut
-      overflow: 'visible', // Taşan içeriği göster
-      textOverflow: 'clip', // Metni kırpma
+      whiteSpace: 'nowrap',
+      overflow: 'visible',
+      textOverflow: 'clip',
       padding: '10px',
     }),
     singleValue: (provided) => ({
       ...provided,
       maxWidth: '100%',
-      whiteSpace: 'normal', // Metni birden fazla satıra böl
-      overflow: 'visible', // Taşan içeriği göster
-      textOverflow: 'clip', // Metni kırpma
-      height: 'auto', // Yüksekliği içeriğe göre ayarla
-      lineHeight: '1.2', // Satır yüksekliğini azalt
+      whiteSpace: 'normal',
+      overflow: 'visible',
+      textOverflow: 'clip',
+      height: 'auto',
+      lineHeight: '1.2',
     }),
     valueContainer: (provided) => ({
       ...provided,
-      whiteSpace: 'normal', // Metni birden fazla satıra böl
-      overflow: 'visible', // Taşan içeriği göster
-      textOverflow: 'clip', // Metni kırpma
-      height: 'auto', // Yüksekliği içeriğe göre ayarla
-      flexWrap: 'wrap', // İçeriği sarma
+      whiteSpace: 'normal',
+      overflow: 'visible',
+      textOverflow: 'clip',
+      height: 'auto',
+      flexWrap: 'wrap',
     }),
   };
 
