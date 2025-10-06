@@ -12,7 +12,8 @@ const OrderHistoryPanel = lazy(() => import('../components/OrderHistoryPanel'));
 
 function Dashboard() {
   const [activeTab, setActiveTab] = useState('companies');
-  const { isDark, accentColor } = useContext(ThemeContext);
+  const themeContext = useContext(ThemeContext);
+  const { isDark = false, accentColor = 'emerald' } = themeContext || {};
 
   const renderPanel = () => {
     const panels = {

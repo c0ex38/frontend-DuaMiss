@@ -31,6 +31,20 @@ function Sidebar({ activeTab, setActiveTab }) {
     }
   };
 
+  // Accent color gradient mapping - CRITICAL: Tailwind needs static classes
+  const getAccentGradient = (color) => {
+    const gradients = {
+      blue: 'from-blue-500 to-purple-600',
+      purple: 'from-purple-500 to-purple-600',
+      green: 'from-green-500 to-purple-600',
+      red: 'from-red-500 to-purple-600',
+      yellow: 'from-yellow-500 to-purple-600',
+      pink: 'from-pink-500 to-purple-600',
+      emerald: 'from-emerald-500 to-purple-600'
+    };
+    return gradients[color] || gradients.blue;
+  };
+
   return (
     <div className={`fixed left-0 top-0 h-screen w-72 text-white flex flex-col shadow-2xl border-r transition-all duration-300 ${
       isDark 
@@ -40,7 +54,7 @@ function Sidebar({ activeTab, setActiveTab }) {
       {/* Header */}
       <div className="p-8 border-b border-white/10">
         <div className="flex items-center space-x-3 mb-2">
-          <div className={`w-12 h-12 bg-gradient-to-br from-${accentColor}-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg`}>
+          <div className={`w-12 h-12 bg-gradient-to-br ${getAccentGradient(accentColor)} rounded-xl flex items-center justify-center shadow-lg`}>
             <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>

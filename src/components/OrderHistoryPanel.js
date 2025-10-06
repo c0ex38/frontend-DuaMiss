@@ -40,6 +40,7 @@ function OrderHistoryPanel() {
   }, [orders, selectedCompany, startDate, endDate]);
 
   const fetchData = useCallback(async () => {
+    let isMounted = true;
     try {
       setLoading(true);
       const [ordersRes, companiesRes] = await Promise.all([
@@ -47,17 +48,24 @@ function OrderHistoryPanel() {
         api.get('companies/')
       ]);
       
-      const sortedOrders = ordersRes.data.sort((a, b) => 
-        new Date(b.created_at) - new Date(a.created_at)
-      );
-      
-      setOrders(sortedOrders);
-      setCompanies(companiesRes.data);
+      if (isMounted) {
+        const sortedOrders = ordersRes.data.sort((a, b) => 
+          new Date(b.created_at) - new Date(a.created_at)
+        );
+        
+        setOrders(sortedOrders);
+        setCompanies(companiesRes.data);
+      }
     } catch (err) {
-      handleApiError(err, 'Veriler alınırken bir hata oluştu');
+      if (isMounted) {
+        handleApiError(err, 'Veriler alınırken bir hata oluştu');
+      }
     } finally {
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     }
+    return () => { isMounted = false; };
   }, [handleApiError]);
 
   useEffect(() => {

@@ -5,7 +5,7 @@ const Toast = ({ toast, onClose }) => {
   const [progress, setProgress] = useState(100);
 
   useEffect(() => {
-    if (!toast) return;
+    if (!toast || !toast.message) return;
 
     const timer = setTimeout(() => {
       onClose();

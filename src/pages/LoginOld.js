@@ -1,67 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import api from '../api/axios';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import useToast from '../hooks/useToast';
 import Toast from '../components/Toast';
-import { 
-  sanitizeInput, 
-  isValidUsername, 
-  checkRateLimit, 
-  getRateLimitRemaining,
-  sanitizeRedirectUrl 
-} from '../utils/security';
 
 function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
   const navigate = useNavigate();
 
   const { toast, showToast, hideToast, handleApiError } = useToast();
 
-  // Check rate limit on mount and update countdown
-  useEffect(() => {
-    const remaining = getRateLimitRemaining('login');
-    setRateLimitSeconds(remaining);
-    
-    if (remaining > 0) {
-      const interval = setInterval(() => {
-        const newRemaining = getRateLimitRemaining('login');
-        setRateLimitSeconds(newRemaining);
-        if (newRemaining === 0) {
-          clearInterval(interval);
-        }
-      }, 1000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [loading]);
-
   const handleLogin = async (e) => {
     e.preventDefault();
     
-    // Input validation
     if (!username.trim() || !password.trim()) {
       showToast('Kullanıcı adı ve şifre gerekli', 'warning');
-      return;
-    }
-    
-    // Sanitize inputs
-    const sanitizedUsername = sanitizeInput(username.trim());
-    
-    // Validate username format
-    if (!isValidUsername(sanitizedUsername)) {
-      showToast('Geçersiz kullanıcı adı formatı. Sadece harf, rakam, tire ve alt çizgi kullanın.', 'warning');
-      return;
-    }
-    
-    // Check rate limiting (max 5 attempts per minute)
-    if (!checkRateLimit('login', 5, 60000)) {
-      const remaining = getRateLimitRemaining('login');
-      showToast(`Çok fazla deneme! ${remaining} saniye sonra tekrar deneyin.`, 'error');
-      setRateLimitSeconds(remaining);
       return;
     }
     
@@ -69,63 +25,28 @@ function Login() {
     
     try {
       const res = await api.post('token/', { 
-        username: sanitizedUsername, 
+        username: username.trim(), 
         password 
-      }, {
-        timeout: 60000 // 60 second timeout for login
       });
       
       localStorage.setItem('access', res.data.access);
       localStorage.setItem('refresh', res.data.refresh);
       
-      // Store login time for session management
-      localStorage.setItem('loginTime', Date.now().toString());
-      
       showToast('Giriş başarılı, yönlendiriliyorsunuz...');
-      
-      // Get redirect URL from query params (if any) and sanitize it
-      const urlParams = new URLSearchParams(window.location.search);
-      const redirectUrl = sanitizeRedirectUrl(urlParams.get('redirect'), '/dashboard');
       
       // Small delay for better UX
       setTimeout(() => {
-        navigate(redirectUrl);
+        navigate('/dashboard');
       }, 1000);
     } catch (err) {
-      console.error('Login error details:', {
-        status: err.response?.status,
-        message: err.message,
-        code: err.code
-      });
-      
-      if (err.code === 'ECONNABORTED') {
-        showToast('İstek zaman aşımına uğradı. Backend sunucusu çok yavaş yanıt veriyor. Lütfen tekrar deneyin.', 'error');
-      } else if (err.response?.status === 401) {
+      if (err.response?.status === 401) {
         showToast('Kullanıcı adı veya şifre hatalı', 'error');
-      } else if (err.response?.status === 500) {
-        showToast('Sunucu geçici olarak yanıt veremiyor. Lütfen 1-2 dakika bekleyip tekrar deneyin.', 'error');
-      } else if (err.response?.status === 400) {
-        const errorMsg = err.response?.data?.detail 
-          || err.response?.data?.message 
-          || 'Geçersiz kullanıcı adı veya şifre';
-        showToast(errorMsg, 'error');
-      } else if (!err.response) {
-        showToast(
-          'Backend sunucusuna bağlanılamadı. İnternet bağlantınızı kontrol edin veya backend servisinin aktif olduğundan emin olun.',
-          'error'
-        );
       } else {
         handleApiError(err, 'Giriş yapılamadı');
       }
     } finally {
       setLoading(false);
     }
-  };
-
-  const getPasswordStrengthColor = () => {
-    if (rateLimitSeconds > 0) return 'from-gray-400 via-gray-500 to-gray-600';
-    if (loading) return 'from-gray-400 via-gray-500 to-gray-600';
-    return 'from-indigo-600 via-purple-600 to-pink-600';
   };
 
   return (
@@ -157,7 +78,7 @@ function Login() {
           <motion.div 
             whileHover={{ scale: 1.1, rotate: 180 }}
             transition={{ duration: 0.4, type: "spring", stiffness: 200 }}
-            className={`mx-auto h-20 w-20 bg-gradient-to-br ${getPasswordStrengthColor()} rounded-2xl flex items-center justify-center mb-6 shadow-lg`}
+            className="mx-auto h-20 w-20 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg"
           >
             <svg className="h-10 w-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -200,7 +121,7 @@ function Login() {
                 placeholder="Kullanıcı adınızı girin"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                disabled={loading || rateLimitSeconds > 0}
+                disabled={loading}
                 required
               />
             </div>
@@ -225,50 +146,35 @@ function Login() {
                 placeholder="Şifrenizi girin"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={loading || rateLimitSeconds > 0}
+                disabled={loading}
                 required
               />
             </div>
           </motion.div>
 
-          {rateLimitSeconds > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center space-x-3"
-            >
-              <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-sm text-red-700">
-                Çok fazla deneme yapıldı. <span className="font-bold">{rateLimitSeconds} saniye</span> sonra tekrar deneyin.
-              </p>
-            </motion.div>
-          )}
-
           <motion.button
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.7, type: "spring", stiffness: 100 }}
-            whileHover={{ scale: loading || rateLimitSeconds > 0 ? 1 : 1.02, y: loading || rateLimitSeconds > 0 ? 0 : -2 }}
-            whileTap={{ scale: loading || rateLimitSeconds > 0 ? 1 : 0.98 }}
+            whileHover={{ scale: loading ? 1 : 1.02, y: loading ? 0 : -2 }}
+            whileTap={{ scale: loading ? 1 : 0.98 }}
             type="submit"
-            disabled={loading || rateLimitSeconds > 0}
+            disabled={loading}
             className={`w-full relative overflow-hidden py-4 px-6 rounded-2xl text-white font-semibold text-lg shadow-xl transition-all duration-300 ${
-              loading || rateLimitSeconds > 0 ? 'cursor-not-allowed bg-gray-500' : 'hover:shadow-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600'
+              loading ? 'cursor-not-allowed' : 'hover:shadow-2xl'
             }`}
+            style={{
+              background: loading 
+                ? 'linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%)'
+                : 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+              backgroundSize: '200% 200%',
+              animation: loading ? 'none' : 'gradient 3s ease infinite'
+            }}
           >
             {loading ? (
               <div className="flex items-center justify-center space-x-3">
                 <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
                 <span>Giriş yapılıyor...</span>
-              </div>
-            ) : rateLimitSeconds > 0 ? (
-              <div className="flex items-center justify-center space-x-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                <span>Bekleyin ({rateLimitSeconds}s)</span>
               </div>
             ) : (
               <div className="flex items-center justify-center space-x-2">

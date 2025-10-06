@@ -6,6 +6,7 @@ import useDebounce from '../hooks/useDebounce';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { SkeletonLoader } from '../components/LoadingComponents';
 import Toast from './Toast';
+import { sanitizeInput, sanitizeSqlInput, isValidNumber } from '../utils/security';
 
 // ProductCard component
 const ProductCard = ({ product, onEdit, onDelete, loading }) => (
@@ -50,7 +51,8 @@ function ProductPanel() {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  const { isDark, accentColor } = useContext(ThemeContext);
+  const themeContext = useContext(ThemeContext);
+  const { isDark = false, accentColor = 'blue' } = themeContext || {};
   const { toast, showToast, hideToast, handleApiError } = useToast();
   
   // Debounce search for better performance
@@ -67,16 +69,24 @@ function ProductPanel() {
   }, [products, debouncedSearch]);
 
   const fetchProducts = useCallback(async () => {
+    let isMounted = true;
     try {
       setLoading(true);
       const res = await api.get('products/');
-      setProducts(Array.isArray(res.data) ? res.data : []);
+      if (isMounted) {
+        setProducts(Array.isArray(res.data) ? res.data : []);
+      }
     } catch (err) {
-      handleApiError(err, 'Ürünler alınamadı');
-      setProducts([]);
+      if (isMounted) {
+        handleApiError(err, 'Ürünler alınamadı');
+        setProducts([]);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     }
+    return () => { isMounted = false; };
   }, [handleApiError]);
 
   const handleAddOrUpdate = async (e) => {
@@ -101,10 +111,10 @@ function ProductPanel() {
       };
 
       if (editId) {
-        await api.put(`products/${editId}/`, productData);
+        await api.put(`products/${editId}/`, productData, { timeout: 30000 });
         showToast('Ürün güncellendi');
       } else {
-        await api.post('products/', productData);
+        await api.post('products/', productData, { timeout: 30000 });
         showToast('Ürün eklendi');
       }
 
@@ -115,7 +125,11 @@ function ProductPanel() {
       setShowForm(false);
       fetchProducts();
     } catch (err) {
-      handleApiError(err, 'İşlem başarısız');
+      if (err.code === 'ECONNABORTED') {
+        showToast('İstek zaman aşımına uğradı. Lütfen tekrar deneyin.', 'error');
+      } else {
+        handleApiError(err, 'İşlem başarısı��');
+      }
     } finally {
       setLoading(false);
     }

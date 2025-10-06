@@ -4,31 +4,66 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import useToast from '../hooks/useToast';
 import Toast from '../components/Toast';
+import { 
+  sanitizeInput, 
+  isValidUsername, 
+  validatePasswordStrength,
+  checkRateLimit,
+  getRateLimitRemaining 
+} from '../utils/security';
 
 function Register() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState({ strength: 0, message: '' });
 
   const navigate = useNavigate();
   const { toast, showToast, hideToast, handleApiError } = useToast();
 
+  // Update password strength on change
+  const handlePasswordChange = (value) => {
+    setPassword(value);
+    const strength = validatePasswordStrength(value);
+    setPasswordStrength(strength);
+  };
+
   const handleRegister = async (e) => {
     e.preventDefault();
     
+    // Input validation
     if (!username.trim() || !password.trim() || !confirmPassword.trim()) {
       showToast('Tüm alanları doldurun', 'warning');
       return;
     }
     
+    // Sanitize username
+    const sanitizedUsername = sanitizeInput(username.trim());
+    
+    // Validate username format
+    if (!isValidUsername(sanitizedUsername)) {
+      showToast('Kullanıcı adı 3-20 karakter olmalı ve sadece harf, rakam, tire, alt çizgi içerebilir', 'warning');
+      return;
+    }
+    
+    // Check password match
     if (password !== confirmPassword) {
       showToast('Şifreler eşleşmiyor', 'warning');
       return;
     }
     
-    if (password.length < 6) {
-      showToast('Şifre en az 6 karakter olmalıdır', 'warning');
+    // Validate password strength
+    const passwordValidation = validatePasswordStrength(password);
+    if (passwordValidation.strength < 2) {
+      showToast(passwordValidation.message, 'warning');
+      return;
+    }
+    
+    // Check rate limiting
+    if (!checkRateLimit('register', 3, 300000)) { // Max 3 attempts per 5 minutes
+      const remaining = Math.ceil(getRateLimitRemaining('register') / 60);
+      showToast(`Çok fazla kayıt denemesi! ${remaining} dakika sonra tekrar deneyin.`, 'error');
       return;
     }
     
@@ -106,12 +141,45 @@ function Register() {
             <input
               type="password"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition bg-white/50 backdrop-blur-sm"
-              placeholder="Şifrenizi girin (en az 6 karakter)"
+              placeholder="Şifrenizi girin (en az 8 karakter)"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => handlePasswordChange(e.target.value)}
               disabled={loading}
               required
             />
+            {password && (
+              <div className="mt-2">
+                <div className="flex gap-1 mb-1">
+                  {[1, 2, 3, 4].map((level) => (
+                    <div
+                      key={level}
+                      className={`h-2 flex-1 rounded transition-all ${
+                        passwordStrength.strength >= level
+                          ? passwordStrength.strength <= 1
+                            ? 'bg-red-500'
+                            : passwordStrength.strength === 2
+                            ? 'bg-yellow-500'
+                            : passwordStrength.strength === 3
+                            ? 'bg-blue-500'
+                            : 'bg-green-500'
+                          : 'bg-gray-200'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className={`text-xs ${
+                  passwordStrength.strength <= 1
+                    ? 'text-red-600'
+                    : passwordStrength.strength === 2
+                    ? 'text-yellow-600'
+                    : passwordStrength.strength === 3
+                    ? 'text-blue-600'
+                    : 'text-green-600'
+                }`}>
+                  {passwordStrength.message}
+                </p>
+              </div>
+            )}
           </motion.div>
 
           <motion.div

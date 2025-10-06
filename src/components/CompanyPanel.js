@@ -1,7 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import api from '../api/axios';
 import useToast from '../hooks/useToast';
+import useDebounce from '../hooks/useDebounce';
 import Toast from './Toast';
+import { sanitizeInput, sanitizeSqlInput } from '../utils/security';
 
 function CompanyPanel() {
   const [companies, setCompanies] = useState([]);
@@ -28,18 +30,33 @@ function CompanyPanel() {
 
   const handleAddOrUpdate = async (e) => {
     e.preventDefault();
-    if (!name.trim()) {
+    
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       showToast('Şirket adı gerekli', 'warning');
+      return;
+    }
+
+    // Sanitize input to prevent XSS and SQL injection
+    const sanitizedName = sanitizeSqlInput(sanitizeInput(trimmedName));
+    
+    if (sanitizedName.length < 2) {
+      showToast('Şirket adı en az 2 karakter olmalı', 'warning');
+      return;
+    }
+    
+    if (sanitizedName.length > 100) {
+      showToast('Şirket adı çok uzun (max 100 karakter)', 'warning');
       return;
     }
 
     try {
       setLoading(true);
       if (editId) {
-        await api.put(`companies/${editId}/`, { name: name.trim() });
+        await api.put(`companies/${editId}/`, { name: sanitizedName }, { timeout: 30000 });
         showToast('Şirket güncellendi');
       } else {
-        await api.post('companies/', { name: name.trim() });
+        await api.post('companies/', { name: sanitizedName }, { timeout: 30000 });
         showToast('Şirket eklendi');
       }
 
@@ -47,7 +64,11 @@ function CompanyPanel() {
       setEditId(null);
       fetchCompanies();
     } catch (err) {
-      handleApiError(err, 'İşlem başarısız');
+      if (err.code === 'ECONNABORTED') {
+        showToast('İstek zaman aşımına uğradı', 'error');
+      } else {
+        handleApiError(err, 'İşlem başarısız');
+      }
     } finally {
       setLoading(false);
     }

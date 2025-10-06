@@ -36,6 +36,7 @@ function OrderPanel() {
   );
 
   const fetchData = useCallback(async () => {
+    let isMounted = true;
     try {
       setLoading(true);
       const [compRes, prodRes, orderRes] = await Promise.all([
@@ -43,14 +44,21 @@ function OrderPanel() {
         api.get('products/'),
         api.get('orders/'),
       ]);
-      setCompanies(compRes.data);
-      setProducts(prodRes.data);
-      setOrders(orderRes.data);
+      if (isMounted) {
+        setCompanies(compRes.data);
+        setProducts(prodRes.data);
+        setOrders(orderRes.data);
+      }
     } catch (err) {
-      handleApiError(err, 'Veriler alınamadı');
+      if (isMounted) {
+        handleApiError(err, 'Veriler alınamadı');
+      }
     } finally {
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     }
+    return () => { isMounted = false; };
   }, [handleApiError]);
 
   useEffect(() => {
@@ -94,7 +102,7 @@ function OrderPanel() {
         global_discount: globalDiscount,
         vat_rate: vatRate,
         items: validItems,
-      });
+      }, { timeout: 45000 }); // 45 second timeout for order creation
       
       showToast('Sipariş başarıyla oluşturuldu');
       
@@ -103,10 +111,14 @@ function OrderPanel() {
       setVatRate(0);
       setItems([{ product: '', quantity: 1, unit_price: '', item_discount: 0 }]);
 
-      const updatedOrders = await api.get('orders/');
+      const updatedOrders = await api.get('orders/', { timeout: 30000 });
       setOrders(updatedOrders.data);
     } catch (err) {
-      handleApiError(err, 'Sipariş oluşturulamadı');
+      if (err.code === 'ECONNABORTED') {
+        showToast('İstek zaman aşımına uğradı. Sipariş oluşturulurken sorun yaşandı, lütfen tekrar deneyin.', 'error', 5000);
+      } else {
+        handleApiError(err, 'Sipariş oluşturulamadı');
+      }
     } finally {
       setLoading(false);
     }
@@ -116,43 +128,41 @@ function OrderPanel() {
   const handleItemChange = useCallback((index, field, value) => {
     setItems(prevItems => {
       const newItems = [...prevItems];
-      // Validate inputs to prevent negative values
-      if ((field === 'quantity' || field === 'unit_price') && value < 0) {
-        value = 0;
-      }
-      // Limit discount to 0-100 range
-      if (field === 'item_discount' && (value < 0 || value > 100)) {
-        value = value < 0 ? 0 : 100;
-      }
-      // Değeri güncelle - boş string kontrolü ekledik
-      if (field === 'quantity' || field === 'item_discount') {
-        newItems[index][field] = Number(value) || 0;
+      
+      if (field === 'product') {
+        // Ürün seçildiğinde
+        newItems[index][field] = value;
+        // Auto-fill price when product is selected
+        if (value) {
+          const selectedProduct = products.find(p => p.id === Number(value));
+          if (selectedProduct) {
+            newItems[index].unit_price = selectedProduct.price;
+          }
+        }
+      } else if (field === 'quantity') {
+        // Adet için - her zaman pozitif sayı
+        const numValue = Number(value);
+        newItems[index][field] = Math.max(1, isNaN(numValue) ? 1 : numValue);
       } else if (field === 'unit_price') {
-        newItems[index][field] = value === '' ? '' : Number(value);
+        // Birim fiyat için - boş string veya geçerli pozitif sayı
+        if (value === '' || value === null || value === undefined) {
+          newItems[index][field] = '';
+        } else {
+          const numValue = parseFloat(value);
+          newItems[index][field] = isNaN(numValue) ? '' : Math.max(0, numValue);
+        }
+      } else if (field === 'item_discount') {
+        // İskonto için - 0-100 arası
+        const numValue = Number(value);
+        const validValue = isNaN(numValue) ? 0 : Math.min(100, Math.max(0, numValue));
+        newItems[index][field] = validValue;
       } else {
         newItems[index][field] = value;
       }
-      // Auto-fill price when product is selected
-      if (field === 'product' && value) {
-        const selectedProduct = products.find(p => p.id === Number(value));
-        if (selectedProduct) {
-          newItems[index].unit_price = selectedProduct.price;
-        }
-      }
+      
       return newItems;
     });
   }, [products]);
-  // Son satırda ürün seçilirse yeni satır ekle
-  useEffect(() => {
-    if (
-      items.length > 0 &&
-      items[items.length - 1].product &&
-      items[items.length - 1].quantity &&
-      items[items.length - 1].unit_price
-    ) {
-      addItemRow();
-    }
-  }, [items]);
 
   const handleGlobalDiscountChange = (value) => {
     const numValue = Number(value) || 0;
@@ -173,26 +183,43 @@ function OrderPanel() {
     // Calculate subtotal and item discounts
     items.forEach(item => {
       // Skip calculation for items with missing values
-      if (!item.product || !item.quantity || !item.unit_price) {
+      if (!item.product || !item.quantity) {
         return;
       }
       
-      const qty = Number(item.quantity) || 0;
-      const price = Number(item.unit_price) || 0;
-      const discount = Number(item.item_discount) || 0;
+      // Parse quantity - ensure it's a valid positive number
+      const qty = parseFloat(item.quantity);
+      if (isNaN(qty) || qty <= 0) {
+        return;
+      }
       
-      const itemTotal = Math.max(0, qty * price);
-      const itemDiscountAmount = (itemTotal * Math.min(Math.max(0, discount), 100)) / 100;
-      subtotal += Math.max(0, itemTotal - itemDiscountAmount);
+      // Parse unit price - ensure it's a valid non-negative number
+      const price = parseFloat(item.unit_price);
+      if (isNaN(price) || price < 0 || item.unit_price === '' || item.unit_price === null) {
+        return;
+      }
+      
+      // Parse discount - ensure it's between 0-100
+      const discount = parseFloat(item.item_discount) || 0;
+      const validDiscount = Math.min(100, Math.max(0, discount));
+      
+      // Calculate item total with discount
+      const itemTotal = qty * price;
+      const itemDiscountAmount = (itemTotal * validDiscount) / 100;
+      const itemSubtotal = itemTotal - itemDiscountAmount;
+      
+      subtotal += Math.max(0, itemSubtotal);
     });
 
     // Calculate global discount (clamped between 0-100%)
-    const safeGlobalDiscount = Math.min(Math.max(0, Number(globalDiscount) || 0), 100);
+    const globalDiscountValue = parseFloat(globalDiscount) || 0;
+    const safeGlobalDiscount = Math.min(100, Math.max(0, globalDiscountValue));
     const globalDiscountAmount = (subtotal * safeGlobalDiscount) / 100;
     const afterDiscount = Math.max(0, subtotal - globalDiscountAmount);
 
     // Calculate VAT (ensure non-negative)
-    const safeVatRate = Math.max(0, Number(vatRate) || 0);
+    const vatRateValue = parseFloat(vatRate) || 0;
+    const safeVatRate = Math.max(0, vatRateValue);
     const vatAmount = (afterDiscount * safeVatRate) / 100;
 
     // Calculate final total
@@ -421,9 +448,11 @@ function OrderPanel() {
                       <input
                         type="number"
                         min="1"
-                        value={item.quantity}
+                        step="1"
+                        value={item.quantity || 1}
                         onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 transition-all duration-300 bg-white/70 backdrop-blur-sm hover:bg-white/90"
+                        placeholder="1"
                       />
                     </div>
 
@@ -434,9 +463,10 @@ function OrderPanel() {
                         type="number"
                         min="0"
                         step="0.01"
-                        value={item.unit_price}
+                        value={item.unit_price === '' ? '' : item.unit_price}
                         onChange={(e) => handleItemChange(index, 'unit_price', e.target.value)}
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 transition-all duration-300 bg-white/70 backdrop-blur-sm hover:bg-white/90"
+                        placeholder="0.00"
                       />
                     </div>
 
@@ -447,9 +477,11 @@ function OrderPanel() {
                         type="number"
                         min="0"
                         max="100"
-                        value={item.item_discount}
+                        step="0.01"
+                        value={item.item_discount || 0}
                         onChange={(e) => handleItemChange(index, 'item_discount', e.target.value)}
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 transition-all duration-300 bg-white/70 backdrop-blur-sm hover:bg-white/90"
+                        placeholder="0"
                       />
                     </div>
                     
