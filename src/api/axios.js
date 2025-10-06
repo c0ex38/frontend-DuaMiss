@@ -2,6 +2,7 @@ import axios from 'axios';
 import { sanitizeObject } from '../utils/security';
 
 const base = process.env.REACT_APP_API_BASE_URL;
+console.log('🔍 API Base URL:', base); // Debug log
 if (!base) {
   console.warn('REACT_APP_API_BASE_URL not set. API calls may fail.');
 }
@@ -19,6 +20,10 @@ const api = axios.create({
 // Request interceptor - automatically add auth token to requests and sanitize data
 api.interceptors.request.use(
   (config) => {
+    // Debug: Log the full URL being requested
+    const fullUrl = `${config.baseURL}${config.url}`;
+    console.log('🌐 API Request:', config.method?.toUpperCase(), fullUrl);
+    
     // Add auth token
     const token = localStorage.getItem('access');
     if (token) {
