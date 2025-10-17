@@ -297,6 +297,8 @@ function OrderPanel() {
     };
     
     console.log('🎯 FINAL RESULT:', result);
+    console.log('🎯 FINAL RESULT TYPE CHECK:', typeof result, result);
+    console.log('🎯 FINAL RESULT KEYS:', Object.keys(result));
     return result;
   }, [items, globalDiscount, vatRate]);
   
@@ -585,22 +587,29 @@ function OrderPanel() {
                 </div>
                 Sipariş Özeti
               </h4>
+              {/* Debug Info */}
+              <div className="mb-4 p-2 bg-yellow-100 rounded text-xs text-gray-600">
+                <div>🔍 Debug - Calculations: {JSON.stringify(calculations)}</div>
+                <div>🔍 Debug - Items: {items.length}</div>
+                <div>🔍 Debug - Global Discount: {globalDiscount}</div>
+                <div>🔍 Debug - VAT Rate: {vatRate}</div>
+              </div>
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Ara Toplam:</span>
-                  <span className="font-medium text-gray-800">₺{calculations.subtotal}</span>
+                  <span className="font-medium text-gray-800">₺{calculations?.subtotal || '0.00'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">İskonto ({globalDiscount}%):</span>
-                  <span className="font-medium text-red-600">-₺{calculations.discountAmount}</span>
+                  <span className="font-medium text-red-600">-₺{calculations?.discountAmount || '0.00'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">KDV ({vatRate}%):</span>
-                  <span className="font-medium text-blue-600">₺{calculations.vatAmount}</span>
+                  <span className="font-medium text-blue-600">₺{calculations?.vatAmount || '0.00'}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold pt-3 border-t border-emerald-200">
                   <span className="text-gray-800">Toplam:</span>
-                  <span className="text-emerald-600">₺{calculations.total}</span>
+                  <span className="text-emerald-600">₺{calculations?.total || '0.00'}</span>
                 </div>
               </div>
             </div>
