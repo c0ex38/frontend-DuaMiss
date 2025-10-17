@@ -126,53 +126,74 @@ function OrderPanel() {
 
   // ÖNEMLİ DEĞİŞİKLİK: handleItemChange'i optimize ettik
   const handleItemChange = useCallback((index, field, value) => {
+    console.log(`🔄 handleItemChange - Index: ${index}, Field: ${field}, Value: ${value}`);
+    
     setItems(prevItems => {
+      console.log(`📝 Previous items:`, prevItems);
       const newItems = [...prevItems];
       
       if (field === 'product') {
+        console.log(`🛍️ Product field changed`);
         // Ürün seçildiğinde
         newItems[index][field] = value;
         // Auto-fill price when product is selected
         if (value) {
           const selectedProduct = products.find(p => p.id === Number(value));
+          console.log(`🔍 Selected product:`, selectedProduct);
           if (selectedProduct) {
             newItems[index].unit_price = selectedProduct.price;
+            console.log(`💰 Auto-filled price: ${selectedProduct.price}`);
           }
         }
       } else if (field === 'quantity') {
+        console.log(`📊 Quantity field changed`);
         // Adet için - her zaman pozitif sayı
         const numValue = safeParseFloat(value);
-        newItems[index][field] = Math.max(1, numValue);
+        const finalValue = Math.max(1, numValue);
+        newItems[index][field] = finalValue;
+        console.log(`📊 Final quantity: ${finalValue}`);
       } else if (field === 'unit_price') {
+        console.log(`💰 Unit price field changed`);
         // Birim fiyat için - boş string veya geçerli pozitif sayı
         if (value === '' || value === null || value === undefined) {
           newItems[index][field] = '';
+          console.log(`💰 Set empty price`);
         } else {
           const numValue = safeParseFloat(value);
-          newItems[index][field] = Math.max(0, numValue);
+          const finalValue = Math.max(0, numValue);
+          newItems[index][field] = finalValue;
+          console.log(`💰 Final price: ${finalValue}`);
         }
       } else if (field === 'item_discount') {
+        console.log(`🎯 Discount field changed`);
         // İskonto için - 0-100 arası
         const numValue = safeParseFloat(value);
         const validValue = Math.min(100, Math.max(0, numValue));
         newItems[index][field] = validValue;
+        console.log(`🎯 Final discount: ${validValue}`);
       } else {
+        console.log(`❓ Other field changed: ${field}`);
         newItems[index][field] = value;
       }
       
+      console.log(`📝 New items:`, newItems);
       return newItems;
     });
   }, [products]);
 
   const handleGlobalDiscountChange = (value) => {
+    console.log(`🎯 Global discount changed: ${value}`);
     const numValue = safeParseFloat(value);
     const validValue = Math.min(Math.max(0, numValue), 100);
+    console.log(`🎯 Final global discount: ${validValue}`);
     setGlobalDiscount(validValue);
   };
 
   const handleVatRateChange = (value) => {
+    console.log(`📊 VAT rate changed: ${value}`);
     const numValue = safeParseFloat(value);
     const validValue = Math.max(0, numValue);
+    console.log(`📊 Final VAT rate: ${validValue}`);
     setVatRate(validValue);
   };
 
@@ -187,59 +208,96 @@ function OrderPanel() {
 
   // ÖNEMLİ DEĞİŞİKLİK: useEffect yerine useMemo kullanarak hesaplama yaptık
   const calculations = useMemo(() => {
+    console.log('🧮 CALCULATION START - Items:', items);
+    console.log('🧮 CALCULATION START - Global Discount:', globalDiscount);
+    console.log('🧮 CALCULATION START - VAT Rate:', vatRate);
+    
     let subtotal = 0;
     
     // Calculate subtotal and item discounts
-    items.forEach(item => {
+    items.forEach((item, index) => {
+      console.log(`📦 Item ${index}:`, item);
+      
       // Skip calculation for items with missing values
       if (!item.product || !item.quantity) {
+        console.log(`❌ Item ${index} skipped - missing product or quantity`);
         return;
       }
       
       // Parse quantity - ensure it's a valid positive number
       const qty = safeParseFloat(item.quantity);
+      console.log(`📊 Item ${index} quantity:`, qty);
       if (qty <= 0) {
+        console.log(`❌ Item ${index} skipped - invalid quantity`);
         return;
       }
       
       // Parse unit price - ensure it's a valid non-negative number
       const price = safeParseFloat(item.unit_price);
+      console.log(`💰 Item ${index} price:`, price);
       if (price < 0 || item.unit_price === '' || item.unit_price === null) {
+        console.log(`❌ Item ${index} skipped - invalid price`);
         return;
       }
       
       // Parse discount - ensure it's between 0-100
       const discount = safeParseFloat(item.item_discount);
       const validDiscount = Math.min(100, Math.max(0, discount));
+      console.log(`🎯 Item ${index} discount:`, validDiscount);
       
       // Calculate item total with discount
       const itemTotal = qty * price;
       const itemDiscountAmount = (itemTotal * validDiscount) / 100;
       const itemSubtotal = itemTotal - itemDiscountAmount;
       
+      console.log(`🧮 Item ${index} calculations:`);
+      console.log(`  - Item Total: ${itemTotal}`);
+      console.log(`  - Discount Amount: ${itemDiscountAmount}`);
+      console.log(`  - Item Subtotal: ${itemSubtotal}`);
+      
       subtotal += Math.max(0, itemSubtotal);
+      console.log(`📈 Running subtotal: ${subtotal}`);
     });
+
+    console.log(`🎯 Final subtotal: ${subtotal}`);
 
     // Calculate global discount (clamped between 0-100%)
     const globalDiscountValue = safeParseFloat(globalDiscount);
     const safeGlobalDiscount = Math.min(100, Math.max(0, globalDiscountValue));
     const globalDiscountAmount = (subtotal * safeGlobalDiscount) / 100;
     const afterDiscount = Math.max(0, subtotal - globalDiscountAmount);
+    
+    console.log(`🎯 Global discount calculations:`);
+    console.log(`  - Global discount value: ${globalDiscountValue}`);
+    console.log(`  - Safe global discount: ${safeGlobalDiscount}`);
+    console.log(`  - Global discount amount: ${globalDiscountAmount}`);
+    console.log(`  - After discount: ${afterDiscount}`);
 
     // Calculate VAT (ensure non-negative)
     const vatRateValue = safeParseFloat(vatRate);
     const safeVatRate = Math.max(0, vatRateValue);
     const vatAmount = (afterDiscount * safeVatRate) / 100;
+    
+    console.log(`🎯 VAT calculations:`);
+    console.log(`  - VAT rate value: ${vatRateValue}`);
+    console.log(`  - Safe VAT rate: ${safeVatRate}`);
+    console.log(`  - VAT amount: ${vatAmount}`);
 
     // Calculate final total
     const total = afterDiscount + vatAmount;
+    
+    console.log(`🎯 Final calculations:`);
+    console.log(`  - Total: ${total}`);
 
-    return {
+    const result = {
       subtotal: subtotal.toFixed(2),
       discountAmount: globalDiscountAmount.toFixed(2),
       vatAmount: vatAmount.toFixed(2),
       total: total.toFixed(2)
     };
+    
+    console.log('🎯 FINAL RESULT:', result);
+    return result;
   }, [items, globalDiscount, vatRate]);
   
   // React-Select özel stilleri
