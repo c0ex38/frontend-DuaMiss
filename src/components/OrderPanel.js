@@ -65,14 +65,6 @@ function OrderPanel() {
     fetchData();
   }, [fetchData]);
 
-  // Debug: calculations objesinin değişimini izle
-  useEffect(() => {
-    console.log('🔄 UI UPDATE - Calculations changed:', calculations);
-    console.log('🔄 UI UPDATE - Items changed:', items);
-    console.log('🔄 UI UPDATE - Global discount changed:', globalDiscount);
-    console.log('🔄 UI UPDATE - VAT rate changed:', vatRate);
-  }, [calculations, items, globalDiscount, vatRate]);
-
   const addItemRow = () => {
     setItems([...items, { product: '', quantity: 1, unit_price: '', item_discount: 0 }]);
   };
@@ -312,6 +304,14 @@ function OrderPanel() {
     console.log('🎯 useMemo dependencies - items:', items, 'globalDiscount:', globalDiscount, 'vatRate:', vatRate);
     return result;
   }, [items, globalDiscount, vatRate]);
+
+  // Debug: calculations objesinin değişimini izle (calculations tanımlandıktan sonra)
+  useEffect(() => {
+    console.log('🔄 UI UPDATE - Calculations changed:', calculations);
+    console.log('🔄 UI UPDATE - Items changed:', items);
+    console.log('🔄 UI UPDATE - Global discount changed:', globalDiscount);
+    console.log('🔄 UI UPDATE - VAT rate changed:', vatRate);
+  }, [calculations, items, globalDiscount, vatRate]);
   
   // React-Select özel stilleri
   const customSelectStyles = {
