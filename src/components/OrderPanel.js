@@ -304,6 +304,8 @@ function OrderPanel() {
     console.log('🎯 useMemo dependencies - items:', items, 'globalDiscount:', globalDiscount, 'vatRate:', vatRate);
     console.log('🎯 useMemo dependencies - items length:', items.length);
     console.log('🎯 useMemo dependencies - items stringified:', JSON.stringify(items));
+    console.log('🎯 useMemo dependencies - items reference:', items === items);
+    console.log('🎯 useMemo dependencies - items hash:', JSON.stringify(items).length);
     return result;
   }, [items, globalDiscount, vatRate]);
 
@@ -318,10 +320,13 @@ function OrderPanel() {
 
   // Force re-render için ek state
   const [debugCounter, setDebugCounter] = useState(0);
+  const [forceUpdate, setForceUpdate] = useState(0);
   
   // Debug counter'ı güncelle
   useEffect(() => {
+    console.log('🔄 DEBUG COUNTER UPDATE - Calculations changed, updating counter');
     setDebugCounter(prev => prev + 1);
+    setForceUpdate(prev => prev + 1);
   }, [calculations]);
   
   // React-Select özel stilleri
@@ -612,6 +617,7 @@ function OrderPanel() {
               {/* Debug Info */}
               <div className="mb-4 p-2 bg-yellow-100 rounded text-xs text-gray-600">
                 <div>🔍 Debug - Counter: {debugCounter}</div>
+                <div>🔍 Debug - Force Update: {forceUpdate}</div>
                 <div>🔍 Debug - Calculations: {JSON.stringify(calculations)}</div>
                 <div>🔍 Debug - Items: {items.length}</div>
                 <div>🔍 Debug - Items Details: {JSON.stringify(items)}</div>
@@ -620,6 +626,7 @@ function OrderPanel() {
                 <div>🔍 Debug - Calculations Type: {typeof calculations}</div>
                 <div>🔍 Debug - Calculations Keys: {calculations ? Object.keys(calculations).join(', ') : 'undefined'}</div>
                 <div>🔍 Debug - Timestamp: {new Date().toLocaleTimeString()}</div>
+                <div>🔍 Debug - React Key: {forceUpdate}</div>
               </div>
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
