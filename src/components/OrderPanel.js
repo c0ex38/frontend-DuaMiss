@@ -302,6 +302,8 @@ function OrderPanel() {
     console.log('🎯 FINAL RESULT TYPE CHECK:', typeof result, result);
     console.log('🎯 FINAL RESULT KEYS:', Object.keys(result));
     console.log('🎯 useMemo dependencies - items:', items, 'globalDiscount:', globalDiscount, 'vatRate:', vatRate);
+    console.log('🎯 useMemo dependencies - items length:', items.length);
+    console.log('🎯 useMemo dependencies - items stringified:', JSON.stringify(items));
     return result;
   }, [items, globalDiscount, vatRate]);
 
@@ -311,7 +313,16 @@ function OrderPanel() {
     console.log('🔄 UI UPDATE - Items changed:', items);
     console.log('🔄 UI UPDATE - Global discount changed:', globalDiscount);
     console.log('🔄 UI UPDATE - VAT rate changed:', vatRate);
+    console.log('🔄 UI UPDATE - Force re-render triggered');
   }, [calculations, items, globalDiscount, vatRate]);
+
+  // Force re-render için ek state
+  const [debugCounter, setDebugCounter] = useState(0);
+  
+  // Debug counter'ı güncelle
+  useEffect(() => {
+    setDebugCounter(prev => prev + 1);
+  }, [calculations]);
   
   // React-Select özel stilleri
   const customSelectStyles = {
@@ -600,6 +611,7 @@ function OrderPanel() {
               </h4>
               {/* Debug Info */}
               <div className="mb-4 p-2 bg-yellow-100 rounded text-xs text-gray-600">
+                <div>🔍 Debug - Counter: {debugCounter}</div>
                 <div>🔍 Debug - Calculations: {JSON.stringify(calculations)}</div>
                 <div>🔍 Debug - Items: {items.length}</div>
                 <div>🔍 Debug - Items Details: {JSON.stringify(items)}</div>
@@ -607,6 +619,7 @@ function OrderPanel() {
                 <div>🔍 Debug - VAT Rate: {vatRate}</div>
                 <div>🔍 Debug - Calculations Type: {typeof calculations}</div>
                 <div>🔍 Debug - Calculations Keys: {calculations ? Object.keys(calculations).join(', ') : 'undefined'}</div>
+                <div>🔍 Debug - Timestamp: {new Date().toLocaleTimeString()}</div>
               </div>
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
