@@ -141,20 +141,20 @@ function OrderPanel() {
         }
       } else if (field === 'quantity') {
         // Adet için - her zaman pozitif sayı
-        const numValue = Number(value);
-        newItems[index][field] = Math.max(1, isNaN(numValue) ? 1 : numValue);
+        const numValue = safeParseFloat(value);
+        newItems[index][field] = Math.max(1, numValue);
       } else if (field === 'unit_price') {
         // Birim fiyat için - boş string veya geçerli pozitif sayı
         if (value === '' || value === null || value === undefined) {
           newItems[index][field] = '';
         } else {
-          const numValue = parseFloat(value);
-          newItems[index][field] = isNaN(numValue) ? '' : Math.max(0, numValue);
+          const numValue = safeParseFloat(value);
+          newItems[index][field] = Math.max(0, numValue);
         }
       } else if (field === 'item_discount') {
         // İskonto için - 0-100 arası
-        const numValue = Number(value);
-        const validValue = isNaN(numValue) ? 0 : Math.min(100, Math.max(0, numValue));
+        const numValue = safeParseFloat(value);
+        const validValue = Math.min(100, Math.max(0, numValue));
         newItems[index][field] = validValue;
       } else {
         newItems[index][field] = value;
@@ -165,15 +165,24 @@ function OrderPanel() {
   }, [products]);
 
   const handleGlobalDiscountChange = (value) => {
-    const numValue = Number(value) || 0;
+    const numValue = safeParseFloat(value);
     const validValue = Math.min(Math.max(0, numValue), 100);
     setGlobalDiscount(validValue);
   };
 
   const handleVatRateChange = (value) => {
-    const numValue = Number(value) || 0;
+    const numValue = safeParseFloat(value);
     const validValue = Math.max(0, numValue);
     setVatRate(validValue);
+  };
+
+  // Güvenli sayısal işlemler için yardımcı fonksiyon
+  const safeParseFloat = (value) => {
+    if (value === null || value === undefined || value === '') {
+      return 0;
+    }
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? 0 : parsed;
   };
 
   // ÖNEMLİ DEĞİŞİKLİK: useEffect yerine useMemo kullanarak hesaplama yaptık
@@ -188,19 +197,19 @@ function OrderPanel() {
       }
       
       // Parse quantity - ensure it's a valid positive number
-      const qty = parseFloat(item.quantity);
-      if (isNaN(qty) || qty <= 0) {
+      const qty = safeParseFloat(item.quantity);
+      if (qty <= 0) {
         return;
       }
       
       // Parse unit price - ensure it's a valid non-negative number
-      const price = parseFloat(item.unit_price);
-      if (isNaN(price) || price < 0 || item.unit_price === '' || item.unit_price === null) {
+      const price = safeParseFloat(item.unit_price);
+      if (price < 0 || item.unit_price === '' || item.unit_price === null) {
         return;
       }
       
       // Parse discount - ensure it's between 0-100
-      const discount = parseFloat(item.item_discount) || 0;
+      const discount = safeParseFloat(item.item_discount);
       const validDiscount = Math.min(100, Math.max(0, discount));
       
       // Calculate item total with discount
@@ -212,13 +221,13 @@ function OrderPanel() {
     });
 
     // Calculate global discount (clamped between 0-100%)
-    const globalDiscountValue = parseFloat(globalDiscount) || 0;
+    const globalDiscountValue = safeParseFloat(globalDiscount);
     const safeGlobalDiscount = Math.min(100, Math.max(0, globalDiscountValue));
     const globalDiscountAmount = (subtotal * safeGlobalDiscount) / 100;
     const afterDiscount = Math.max(0, subtotal - globalDiscountAmount);
 
     // Calculate VAT (ensure non-negative)
-    const vatRateValue = parseFloat(vatRate) || 0;
+    const vatRateValue = safeParseFloat(vatRate);
     const safeVatRate = Math.max(0, vatRateValue);
     const vatAmount = (afterDiscount * safeVatRate) / 100;
 
