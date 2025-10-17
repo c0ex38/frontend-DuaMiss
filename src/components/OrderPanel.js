@@ -65,6 +65,14 @@ function OrderPanel() {
     fetchData();
   }, [fetchData]);
 
+  // Debug: calculations objesinin değişimini izle
+  useEffect(() => {
+    console.log('🔄 UI UPDATE - Calculations changed:', calculations);
+    console.log('🔄 UI UPDATE - Items changed:', items);
+    console.log('🔄 UI UPDATE - Global discount changed:', globalDiscount);
+    console.log('🔄 UI UPDATE - VAT rate changed:', vatRate);
+  }, [calculations, items, globalDiscount, vatRate]);
+
   const addItemRow = () => {
     setItems([...items, { product: '', quantity: 1, unit_price: '', item_discount: 0 }]);
   };
@@ -211,6 +219,8 @@ function OrderPanel() {
     console.log('🧮 CALCULATION START - Items:', items);
     console.log('🧮 CALCULATION START - Global Discount:', globalDiscount);
     console.log('🧮 CALCULATION START - VAT Rate:', vatRate);
+    console.log('🧮 CALCULATION START - Items length:', items.length);
+    console.log('🧮 CALCULATION START - Items details:', JSON.stringify(items));
     
     let subtotal = 0;
     
@@ -299,6 +309,7 @@ function OrderPanel() {
     console.log('🎯 FINAL RESULT:', result);
     console.log('🎯 FINAL RESULT TYPE CHECK:', typeof result, result);
     console.log('🎯 FINAL RESULT KEYS:', Object.keys(result));
+    console.log('🎯 useMemo dependencies - items:', items, 'globalDiscount:', globalDiscount, 'vatRate:', vatRate);
     return result;
   }, [items, globalDiscount, vatRate]);
   
@@ -591,8 +602,11 @@ function OrderPanel() {
               <div className="mb-4 p-2 bg-yellow-100 rounded text-xs text-gray-600">
                 <div>🔍 Debug - Calculations: {JSON.stringify(calculations)}</div>
                 <div>🔍 Debug - Items: {items.length}</div>
+                <div>🔍 Debug - Items Details: {JSON.stringify(items)}</div>
                 <div>🔍 Debug - Global Discount: {globalDiscount}</div>
                 <div>🔍 Debug - VAT Rate: {vatRate}</div>
+                <div>🔍 Debug - Calculations Type: {typeof calculations}</div>
+                <div>🔍 Debug - Calculations Keys: {calculations ? Object.keys(calculations).join(', ') : 'undefined'}</div>
               </div>
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
